@@ -1,0 +1,315 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const CalculadoraBeneficioApp());
+}
+
+class CalculadoraBeneficioApp extends StatelessWidget {
+  const CalculadoraBeneficioApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Calculadora Costo-Beneficio',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      home: const PantallaComparador(),
+    );
+  }
+}
+
+class OpcionProducto {
+  TextEditingController precioCtrl = TextEditingController();
+  TextEditingController cantidadCtrl = TextEditingController();
+  String unidad = 'Gramos (g)';
+}
+
+class PantallaComparador extends StatefulWidget {
+  const PantallaComparador({super.key});
+
+  @override
+  State<PantallaComparador> createState() => _PantallaComparadorState();
+}
+
+class _PantallaComparadorState extends State<PantallaComparador> {
+  final List<String> _unidades = [
+    'Gramos (g)',
+    'Kilogramos (kg)',
+    'Mililitros (ml)',
+    'Litros (L)',
+    'Onzas (oz)',
+    'Unidades'
+  ];
+
+  final List<OpcionProducto> _opciones = [
+    OpcionProducto(),
+    OpcionProducto(),
+  ];
+
+  String _mensajeRecomendacion = "Ingresa los precios y cantidades para analizar la mejor opción.";
+
+  void _agregarOpcion() {
+    if (_opciones.length < 5) {
+      setState(() {
+        _opciones.add(OpcionProducto());
+      });
+    }
+  }
+
+  void _eliminarOpcion(int index) {
+    setState(() {
+      _opciones.removeAt(index);
+    });
+  }
+
+  // --- EL NUEVO CEREBRO MATEMÁTICO AVANZADO ---
+  void _calcularMejorOpcion() {
+    if (_opciones.isEmpty) return;
+
+    bool hayError = false;
+    List<Map<String, dynamic>> resultados = [];
+
+    for (int i = 0; i < _opciones.length; i++) {
+      var opcion = _opciones[i];
+      
+      // Si el usuario agregó una tarjeta extra pero la dejó en blanco, la saltamos
+      if (opcion.precioCtrl.text.isEmpty && opcion.cantidadCtrl.text.isEmpty) continue;
+
+      double? precio = double.tryParse(opcion.precioCtrl.text.replaceAll(',', '.'));
+      double? cantidad = double.tryParse(opcion.cantidadCtrl.text.replaceAll(',', '.'));
+
+      // Validamos que sean números lógicos
+      if (precio == null || cantidad == null || cantidad <= 0 || precio < 0) {
+        hayError = true;
+        break;
+      }
+
+      double factorConversion = 1.0;
+      String unidadBase = "ud";
+      String tipoMedida = "unidad";
+
+      // Llevamos todo a su mínima expresión para poder compararlos
+      switch (opcion.unidad) {
+        case 'Gramos (g)': factorConversion = 1.0; unidadBase = "g"; tipoMedida = "peso"; break;
+        case 'Kilogramos (kg)': factorConversion = 1000.0; unidadBase = "g"; tipoMedida = "peso"; break;
+        case 'Onzas (oz)': factorConversion = 28.3495; unidadBase = "g"; tipoMedida = "peso"; break;
+        case 'Mililitros (ml)': factorConversion = 1.0; unidadBase = "ml"; tipoMedida = "volumen"; break;
+        case 'Litros (L)': factorConversion = 1000.0; unidadBase = "ml"; tipoMedida = "volumen"; break;
+        case 'Unidades': factorConversion = 1.0; unidadBase = "ud"; tipoMedida = "unidad"; break;
+      }
+
+      double cantidadRealBase = cantidad * factorConversion;
+      double precioUnitario = precio / cantidadRealBase;
+      String letra = String.fromCharCode(65 + i);
+
+      // Guardamos la radiografía completa de esta opción
+      resultados.add({
+        'letra': letra,
+        'precio': precio,
+        'cantidadOriginal': cantidad,
+        'unidadOriginal': opcion.unidad,
+        'cantidadBase': cantidadRealBase,
+        'precioUnitario': precioUnitario,
+        'unidadBase': unidadBase,
+        'tipoMedida': tipoMedida,
+      });
+    }
+
+    if (hayError || resultados.length < 2) {
+      setState(() {
+        _mensajeRecomendacion = "⚠️ Necesito al menos dos opciones llenadas con números válidos (mayores a cero) para poder comparar.";
+      });
+      return;
+    }
+
+    // ¿El usuario mezcló peso con volumen?
+    bool mezclaUnidades = resultados.map((r) => r['tipoMedida']).toSet().length > 1;
+
+    // 1. Ordenamos la lista para encontrar el Mejor Costo-Beneficio
+    List<Map<String, dynamic>> porCostoBeneficio = List.from(resultados);
+    porCostoBeneficio.sort((a, b) => a['precioUnitario'].compareTo(b['precioUnitario']));
+    var mejorCB = porCostoBeneficio.first;
+    var segundaMejor = porCostoBeneficio[1]; // Tomamos el competidor más cercano
+
+    // 2. Ordenamos la lista para encontrar el más barato al bolsillo (el menor precio bruto)
+    List<Map<String, dynamic>> porPrecio = List.from(resultados);
+    porPrecio.sort((a, b) => a['precio'].compareTo(b['precio']));
+    var masBarato = porPrecio.first;
+
+    String mensajeFinal = "";
+
+    if (mezclaUnidades) {
+      mensajeFinal += "⚠️ Ojo: Estás comparando distintos tipos de medidas (ej. peso con volumen).\n\n";
+    }
+
+    // Análisis de la mejor opción vs la más barata
+    if (mejorCB['letra'] == masBarato['letra']) {
+      mensajeFinal += "🏆 ¡La Opción ${mejorCB['letra']} es la ganadora indiscutible!\n";
+      mensajeFinal += "Es la opción en la que gastas menos dinero ahora mismo y también la que te da más producto por cada centavo.\n\n";
+    } else {
+      mensajeFinal += "💡 ¡Toma una decisión inteligente!\n";
+      mensajeFinal += "Si tienes el presupuesto apretado hoy, la Opción ${masBarato['letra']} es la de menor impacto al bolsillo (\$${masBarato['precio'].toStringAsFixed(2)}).\n";
+      mensajeFinal += "🏆 PERO, la Opción ${mejorCB['letra']} es la verdadera ganadora en COSTO-BENEFICIO a largo plazo.\n\n";
+    }
+
+    // Explicación matemática (Regla de 3)
+    if (segundaMejor['precioUnitario'] > mejorCB['precioUnitario']) {
+      // Calculamos cuánto debería costar la segunda opción si fuera tan buena como la primera
+      double precioJusto = mejorCB['precioUnitario'] * segundaMejor['cantidadBase'];
+      double ahorroReal = segundaMejor['precio'] - precioJusto;
+      
+      mensajeFinal += "📊 ¿Por qué? Aplicando Regla de 3:\n";
+      mensajeFinal += "Si la Opción ${segundaMejor['letra']} fuera tan económica como la Opción ${mejorCB['letra']}, sus ${segundaMejor['cantidadOriginal']} ${segundaMejor['unidadOriginal']} deberían costarte solo \$${precioJusto.toStringAsFixed(2)}.\n";
+      mensajeFinal += "¡Pero te la están vendiendo a \$${segundaMejor['precio'].toStringAsFixed(2)}! Al elegir la Opción ${mejorCB['letra']}, tu dinero rinde más (un ahorro oculto de \$${ahorroReal.toStringAsFixed(2)} por esa cantidad).";
+    } else {
+      mensajeFinal += "⚖️ Empate técnico: Las mejores opciones (${mejorCB['letra']} y ${segundaMejor['letra']}) cuestan exactamente lo mismo por proporción. ¡Cualquiera de las dos rinde igual!";
+    }
+
+    setState(() {
+      _mensajeRecomendacion = mensajeFinal;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Costo-Beneficio'),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            ..._opciones.asMap().entries.map((entry) {
+              int index = entry.key;
+              OpcionProducto opcion = entry.value;
+
+              return Card(
+                elevation: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Opción ${String.fromCharCode(65 + index)}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal,
+                            ),
+                          ),
+                          if (_opciones.length > 2)
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.redAccent),
+                              onPressed: () => _eliminarOpcion(index),
+                            )
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: opcion.precioCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Precio (\$)',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: opcion.cantidadCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Cantidad',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        value: opcion.unidad,
+                        decoration: const InputDecoration(
+                          labelText: 'Unidad de medida',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _unidades.map((String unidad) {
+                          return DropdownMenuItem<String>(
+                            value: unidad,
+                            child: Text(unidad),
+                          );
+                        }).toList(),
+                        onChanged: (String? nuevaUnidad) {
+                          setState(() {
+                            opcion.unidad = nuevaUnidad!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+
+            if (_opciones.length < 5)
+              TextButton.icon(
+                onPressed: _agregarOpcion,
+                icon: const Icon(Icons.add),
+                label: Text('Agregar otra opción (${_opciones.length}/5)'),
+                style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+              ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _calcularMejorOpcion,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Comparar Productos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            Container(
+              padding: const EdgeInsets.all(20),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.teal.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.teal, width: 2),
+              ),
+              child: Text(
+                _mensajeRecomendacion,
+                textAlign: TextAlign.left, // Alineado a la izquierda para que se lea mejor el reporte
+                style: const TextStyle(fontSize: 16, height: 1.4), // Altura de línea para que respiren los párrafos
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
