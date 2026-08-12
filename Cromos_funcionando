@@ -1,0 +1,904 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+// ────────────────────────────────────────────────────────────────
+// COLORES ESTILO CROUPIER LIVE
+// ────────────────────────────────────────────────────────────────
+const Color verdeNeon    = Color(0xFF3CFF00);
+const Color naranjaTema  = Color.fromARGB(255, 255, 136, 0);
+const Color turquesaTema = Color.fromARGB(255, 0, 255, 179);
+const Color fondoOscuro  = Color(0xFF0B0D13);
+const Color fondoCard    = Color(0xFF1A1D26);
+
+// ────────────────────────────────────────────────────────────────
+// SESIÓN DE USUARIO
+// ────────────────────────────────────────────────────────────────
+class AppUser {
+  final String nombre;
+  final bool esAdmin;
+  AppUser(this.nombre, this.esAdmin);
+}
+
+AppUser? sesionActual;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    await Firebase.initializeApp(options: const FirebaseOptions(
+      apiKey:            "AIzaSyBzv8_-a-nmU3nwzYYfeXpumRHh-Rqr7Cg",
+      authDomain:        "crupier.firebaseapp.com",
+      projectId:         "crupier",
+      storageBucket:     "crupier.firebasestorage.app",
+      messagingSenderId: "17562599107",
+      appId:             "1:17562599107:web:9dc13d939059826a4ca4e6",
+      measurementId:     "G-5HRB7LZZJM",
+    ));
+  } else {
+    try { 
+      await Firebase.initializeApp(); 
+    } catch (e) { 
+      debugPrint("Error Firebase: $e"); 
+    }
+  }
+  runApp(const SobresMisteriososApp());
+}
+
+class SobresMisteriososApp extends StatelessWidget {
+  const SobresMisteriososApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData.dark().copyWith(
+      scaffoldBackgroundColor: fondoOscuro,
+      primaryColor: verdeNeon,
+      appBarTheme: const AppBarTheme(backgroundColor: fondoOscuro, elevation: 0),
+    ),
+    home: const LoginScreen(),
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// PANTALLA 1: LOGIN (RÁPIDO Y EXACTO)
+// ════════════════════════════════════════════════════════════════
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override State<LoginScreen> createState() => _LoginScreenState();
+}
+class _LoginScreenState extends State<LoginScreen> {
+  final _userC = TextEditingController();
+  bool _loading = false;
+  String _error = '';
+
+  Future<void> _entrar() async {
+    final credencial = _userC.text.trim();
+    if (credencial.isEmpty) return;
+
+    setState(() { _loading = true; _error = ''; });
+
+    try {
+      // 0. LLAVE MAESTRA DE EMERGENCIA
+      if (credencial == 'MATTI18') {
+        sesionActual = AppUser('ADMIN', true);
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()));
+        return;
+      }
+
+      // 1. VALIDAR SI ES ADMIN REGULAR
+      final configDoc = await FirebaseFirestore.instance.collection('sobres_config').doc('admin_cred').get();
+      final adminPass = configDoc.exists ? (configDoc.data()?['password'] ?? 'ANGEL1984') : 'ANGEL1984';
+
+      if (credencial == adminPass) {
+        sesionActual = AppUser('ADMIN', true);
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()));
+        return;
+      }
+
+      // 2. VALIDAR USUARIO REGISTRADO
+      final doc = await FirebaseFirestore.instance.collection('sobres_usuarios').doc(credencial).get();
+      if (doc.exists) {
+        sesionActual = AppUser(credencial, false);
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UserPanelScreen()));
+      } else {
+        setState(() => _error = 'Credencial incorrecta o usuario no registrado.');
+      }
+    } catch (e) {
+      setState(() => _error = 'Error de conexión.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.mark_email_unread, color: turquesaTema, size: 80),
+        const SizedBox(height: 20),
+        const Text("SISTEMA DE", style: TextStyle(color: naranjaTema, fontSize: 16, letterSpacing: 4, fontWeight: FontWeight.bold)),
+        const Text("SOBRES", style: TextStyle(color: turquesaTema, fontSize: 45, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        const SizedBox(height: 50),
+        TextField(
+          controller: _userC,
+          style: const TextStyle(color: verdeNeon, fontWeight: FontWeight.bold, fontSize: 18),
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            hintText: "Tu Nombre o Credencial",
+            hintStyle: TextStyle(color: verdeNeon.withValues(alpha: 0.4)),
+            filled: true, fillColor: Colors.black45,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+          ),
+          onSubmitted: (_) => _entrar(),
+        ),
+        if (_error.isNotEmpty) Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Text(_error, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(width: double.infinity, height: 55, child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: verdeNeon, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+          onPressed: _loading ? null : _entrar,
+          child: _loading 
+            ? const CircularProgressIndicator(color: Colors.black)
+            : const Text("ENTRAR", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 2)),
+        )),
+      ]),
+    )),
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// PANTALLA 2: PANEL DE USUARIO (GRILLA PEQUEÑA OPTIMIZADA)
+// ════════════════════════════════════════════════════════════════
+class UserPanelScreen extends StatefulWidget {
+  const UserPanelScreen({super.key});
+  @override State<UserPanelScreen> createState() => _UserPanelScreenState();
+}
+class _UserPanelScreenState extends State<UserPanelScreen> {
+  bool _bloqueado = false;
+
+  Future<void> _abrirSobreMisterioso(String sobreId, Map<String, dynamic> sData) async {
+    if (_bloqueado) return;
+    setState(() => _bloqueado = true);
+    
+    final db = FirebaseFirestore.instance;
+    final sobreRef = db.collection('sobres_items').doc(sobreId);
+
+    try {
+      final contenido = await db.runTransaction((tx) async {
+        final sDoc = await tx.get(sobreRef);
+        if (!sDoc.exists) throw "Este sobre ya no existe.";
+        
+        final data = sDoc.data()!;
+        if (data['abierto'] == true) throw "Este sobre ya fue abierto.";
+        if (data['asignado_a'] != sesionActual!.nombre) throw "Este sobre no está asignado a ti.";
+
+        tx.update(sobreRef, {
+          'abierto': true,
+          'fecha_abierto': FieldValue.serverTimestamp(),
+        });
+
+        return List<String>.from(data['contenido'] ?? []);
+      });
+
+      if (mounted) {
+        await Navigator.push(context, PageRouteBuilder(
+          opaque: false,
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder: (context, _, __) => EfectoAperturaPro(cromos: contenido, nombreSobre: sData['alias'] ?? 'Sobre'),
+          transitionsBuilder: (context, anim, _, child) => FadeTransition(opacity: anim, child: child),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent));
+      }
+    } finally {
+      if (mounted) setState(() => _bloqueado = false);
+    }
+  }
+
+  // OPTIMIZACIÓN: Método súper rápido para obtener el número de sobre
+  int _getNumeroSobre(Map<String, dynamic> data) {
+    if (data['numero'] != null) return data['numero'] as int;
+    final alias = data['alias']?.toString() ?? '';
+    final partes = alias.split(' ');
+    if (partes.isNotEmpty) return int.tryParse(partes.last) ?? 999;
+    return 999;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("HOLA, ${sesionActual!.nombre}", style: const TextStyle(color: turquesaTema, fontWeight: FontWeight.w900, fontSize: 16)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: verdeNeon), 
+            tooltip: "Refrescar",
+            onPressed: () => setState(() {})
+          ),
+          IconButton(icon: const Icon(Icons.exit_to_app, color: Colors.redAccent), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())))
+        ],
+      ),
+      body: Column(children: [
+        Container(
+          width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10), 
+          color: turquesaTema.withValues(alpha: 0.1),
+          child: const Text("TOCA UN SOBRE PARA ABRIRLO", style: TextStyle(color: turquesaTema, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1), textAlign: TextAlign.center),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('sobres_items')
+                .where('asignado_a', isEqualTo: sesionActual!.nombre)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: turquesaTema));
+              final sobres = snapshot.data!.docs;
+              
+              if (sobres.isEmpty) return const Center(child: Text("No tienes sobres asignados.", style: TextStyle(color: Colors.white54, fontSize: 16)));
+
+              // ORDENAMIENTO OPTIMIZADO (Sin Expresiones Regulares Lentas)
+              sobres.sort((a, b) {
+                 final dataA = a.data() as Map<String, dynamic>;
+                 final dataB = b.data() as Map<String, dynamic>;
+                 final abA = dataA['abierto'] == true ? 1 : 0;
+                 final abB = dataB['abierto'] == true ? 1 : 0;
+                 if (abA != abB) return abA.compareTo(abB);
+                 return _getNumeroSobre(dataA).compareTo(_getNumeroSobre(dataB));
+              });
+
+              return GridView.builder(
+                padding: const EdgeInsets.all(10),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 110, // Compacto para que se vean bastantes
+                  crossAxisSpacing: 10, 
+                  mainAxisSpacing: 10, 
+                  childAspectRatio: 0.75 // Ajustado para que el texto de los cromos entre mejor
+                ),
+                itemCount: sobres.length,
+                itemBuilder: (context, i) {
+                  final s = sobres[i];
+                  final sData = s.data() as Map<String, dynamic>;
+                  final bool abierto = sData['abierto'] ?? false;
+                  final List<String> cont = List<String>.from(sData['contenido'] ?? []);
+
+                  if (abierto) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black26, borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white12, width: 1),
+                      ),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const SizedBox(height: 5),
+                        const Icon(Icons.drafts, color: Colors.white24, size: 24),
+                        Text(sData['alias'] ?? 'Sobre', style: const TextStyle(color: Colors.white38, fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center, maxLines: 1),
+                        const Text("ABIERTO", style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        // MOSTRAR CONTENIDO DIRECTAMENTE AQUÍ (Sin Toca para ver)
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Text(cont.join('\n'), style: const TextStyle(color: turquesaTema, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                            ),
+                          ),
+                        )
+                      ]),
+                    );
+                  }
+
+                  return GestureDetector(
+                    onTap: _bloqueado ? null : () => _abrirSobreMisterioso(s.id, sData),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                          colors: [naranjaTema.withValues(alpha: 0.9), Colors.deepPurpleAccent.withValues(alpha: 0.9)]
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber, width: 1.5),
+                      ),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const Icon(Icons.mark_email_unread, color: Colors.white, size: 35),
+                        const SizedBox(height: 6),
+                        Text(sData['alias'] ?? 'Sobre', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ]),
+                    ),
+                  );
+                },
+              );
+            }
+          ),
+        )
+      ]),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// EFECTO PRO DE APERTURA (FULL SCREEN - RÁPIDO)
+// ════════════════════════════════════════════════════════════════
+class EfectoAperturaPro extends StatefulWidget {
+  final List<String> cromos;
+  final String nombreSobre;
+  const EfectoAperturaPro({super.key, required this.cromos, required this.nombreSobre});
+
+  @override
+  State<EfectoAperturaPro> createState() => _EfectoAperturaProState();
+}
+
+class _EfectoAperturaProState extends State<EfectoAperturaPro> with TickerProviderStateMixin {
+  int _fase = 0; 
+  
+  @override
+  void initState() {
+    super.initState();
+    _iniciarSecuencia();
+  }
+
+  void _iniciarSecuencia() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    if(mounted) setState(() => _fase = 1); 
+    await Future.delayed(const Duration(milliseconds: 600));
+    if(mounted) setState(() => _fase = 2); 
+    await Future.delayed(const Duration(milliseconds: 100));
+    if(mounted) setState(() => _fase = 3); 
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _fase == 2 ? Colors.white : Colors.black.withValues(alpha: 0.95),
+      body: Center(child: _construirFase()),
+    );
+  }
+
+  Widget _construirFase() {
+    if (_fase < 2) {
+      return TweenAnimationBuilder<double>(
+        key: const ValueKey('sobre'),
+        tween: Tween(begin: 1.0, end: _fase == 1 ? 1.5 : 1.0),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.elasticOut,
+        builder: (context, scale, child) {
+          return Transform.scale(
+            scale: scale,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.mark_email_unread, color: Colors.amber, size: 120),
+                const SizedBox(height: 20),
+                Text(widget.nombreSobre, style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 24)),
+              ],
+            ),
+          );
+        },
+      );
+    } else if (_fase == 2) {
+      return Container(key: const ValueKey('flash'), color: Colors.white);
+    } else {
+      return Column(
+        key: const ValueKey('cartas'),
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text("¡CONSEGUISTE!", style: TextStyle(color: verdeNeon, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 3)),
+          const SizedBox(height: 30),
+          ...widget.cromos.map((c) => Container(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: turquesaTema.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: turquesaTema, width: 2)
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star, color: Colors.amber),
+                const SizedBox(width: 10),
+                Flexible(child: Text(c, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+              ],
+            ),
+          )).toList(),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: turquesaTema, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15)),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("GUARDAR EN EL ÁLBUM", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16)),
+          )
+        ],
+      );
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PANTALLA 3: PANEL DE ADMINISTRADOR (OPTIMIZADO)
+// ════════════════════════════════════════════════════════════════
+class AdminPanelScreen extends StatelessWidget {
+  const AdminPanelScreen({super.key});
+  
+  void _cambiarPassword(BuildContext context) {
+    final passC = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: fondoCard,
+      shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.amber, width: 2), borderRadius: BorderRadius.circular(15)),
+      title: const Text("Cambiar Credencial Admin", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900)),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text("¿Seguro quieres cambiar tu credencial de acceso?", style: TextStyle(color: Colors.white54, fontSize: 12)),
+        const SizedBox(height: 15),
+        TextField(
+          controller: passC, 
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), 
+          decoration: const InputDecoration(labelText: "Nueva Credencial", labelStyle: TextStyle(color: Colors.white54), filled: true, fillColor: Colors.black26)
+        ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("NO, CANCELAR", style: TextStyle(color: Colors.grey))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.amber), 
+          onPressed: () async {
+            if (passC.text.trim().isEmpty) return;
+            final nuevaCredencial = passC.text.trim(); 
+            
+            try {
+              await FirebaseFirestore.instance.collection('sobres_config').doc('admin_cred').set(
+                {'password': nuevaCredencial}, 
+                SetOptions(merge: true)
+              );
+              
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Credencial actualizada con éxito", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: verdeNeon)
+              );
+            } catch (e) {
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Error al cambiar credencial"), backgroundColor: Colors.redAccent)
+              );
+            }
+          }, 
+          child: const Text("SÍ, CAMBIAR", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+        )
+      ],
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) => DefaultTabController(
+    length: 2,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text("PANEL DE ADMIN", style: TextStyle(color: verdeNeon, fontWeight: FontWeight.w900, fontSize: 16)),
+        actions: [
+          IconButton(icon: const Icon(Icons.vpn_key, color: Colors.amber), onPressed: () => _cambiarPassword(context)),
+          IconButton(icon: const Icon(Icons.exit_to_app, color: Colors.redAccent), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())))
+        ],
+        bottom: const TabBar(
+          indicatorColor: verdeNeon, labelColor: verdeNeon, unselectedLabelColor: Colors.grey,
+          tabs: [Tab(text: "USUARIOS"), Tab(text: "SOBRES")],
+        ),
+      ),
+      body: const TabBarView(children: [
+        _AdminUsuariosTab(),
+        _AdminSobresTab(),
+      ]),
+    ),
+  );
+}
+
+// --- SUB-PANTALLA: GESTIÓN DE USUARIOS ---
+class _AdminUsuariosTab extends StatelessWidget {
+  const _AdminUsuariosTab();
+
+  void _registrarUsuario(BuildContext context) {
+    final userC = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: fondoCard, title: const Text("Registrar Usuario", style: TextStyle(color: turquesaTema, fontWeight: FontWeight.w900)),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text("El usuario deberá escribir este nombre exacto.", style: TextStyle(color: Colors.white54, fontSize: 11)),
+        const SizedBox(height: 10),
+        TextField(controller: userC, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: "Nombre Exacto", labelStyle: TextStyle(color: Colors.white54))),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR", style: TextStyle(color: Colors.grey))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: turquesaTema), onPressed: () {
+          if (userC.text.isEmpty) return;
+          FirebaseFirestore.instance.collection('sobres_usuarios').doc(userC.text.trim()).set({'registrado': true}, SetOptions(merge: true));
+          Navigator.pop(ctx);
+        }, child: const Text("GUARDAR", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)))
+      ],
+    ));
+  }
+
+  void _asignarTodosLibres(BuildContext context, String usuario) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: fondoCard,
+      shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.amber), borderRadius: BorderRadius.circular(15)),
+      title: Text("Asignar a $usuario", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900)),
+      content: const Text("¿Asignar TODOS los sobres libres a este usuario?", style: TextStyle(color: Colors.white54)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR", style: TextStyle(color: Colors.grey))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+          onPressed: () async {
+            final db = FirebaseFirestore.instance;
+            final sobres = await db.collection('sobres_items')
+                .where('abierto', isEqualTo: false)
+                .where('asignado_a', isNull: true)
+                .get();
+            final batch = db.batch();
+            for(var d in sobres.docs) {
+              batch.update(d.reference, {'asignado_a': usuario});
+            }
+            await batch.commit();
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${sobres.docs.length} sobres asignados a $usuario", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: verdeNeon));
+            }
+          },
+          child: const Text("ASIGNAR TODOS", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+        )
+      ]
+    ));
+  }
+
+  void _eliminarTodosUsuarios(BuildContext context) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: fondoCard,
+      shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.redAccent), borderRadius: BorderRadius.circular(15)),
+      title: const Text("Eliminar Todos", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900)),
+      content: const Text("¿Estás seguro de eliminar a TODOS los usuarios registrados? Esta acción no se puede deshacer.", style: TextStyle(color: Colors.white54)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR", style: TextStyle(color: Colors.grey))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          onPressed: () async {
+            final db = FirebaseFirestore.instance;
+            final users = await db.collection('sobres_usuarios').get();
+            final batch = db.batch();
+            for(var d in users.docs) {
+              batch.delete(d.reference);
+            }
+            await batch.commit();
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Todos los usuarios eliminados"), backgroundColor: Colors.redAccent));
+          },
+          child: const Text("SÍ, ELIMINAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+        )
+      ]
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(onPressed: () => _registrarUsuario(context), backgroundColor: turquesaTema, icon: const Icon(Icons.person_add, color: Colors.black), label: const Text("NUEVO USUARIO", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('sobres_usuarios').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: turquesaTema));
+          final users = snapshot.data!.docs;
+          
+          return Column(
+            children: [
+              if (users.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Total Usuarios: ${users.length}", style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+                      TextButton.icon(
+                        onPressed: () => _eliminarTodosUsuarios(context), 
+                        icon: const Icon(Icons.delete_sweep, color: Colors.redAccent, size: 20), 
+                        label: const Text("ELIMINAR TODOS", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))
+                      )
+                    ]
+                  ),
+                ),
+              if (users.isEmpty)
+                const Expanded(child: Center(child: Text("No has registrado a nadie aún.", style: TextStyle(color: Colors.white54))))
+              else
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(15), itemCount: users.length,
+                    itemBuilder: (context, i) {
+                      final u = users[i];
+                      return Card(
+                        color: Colors.black45, shape: RoundedRectangleBorder(side: const BorderSide(color: turquesaTema), borderRadius: BorderRadius.circular(10)),
+                        child: ListTile(
+                          leading: const Icon(Icons.person, color: turquesaTema),
+                          title: Text(u.id, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(icon: const Icon(Icons.mail, color: Colors.amber), tooltip: "Asignar todos los sobres libres", onPressed: () => _asignarTodosLibres(context, u.id)),
+                              IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () => u.reference.delete()),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// --- SUB-PANTALLA: VER, CREAR Y ASIGNAR SOBRES ---
+class _AdminSobresTab extends StatefulWidget {
+  const _AdminSobresTab();
+  @override State<_AdminSobresTab> createState() => _AdminSobresTabState();
+}
+class _AdminSobresTabState extends State<_AdminSobresTab> {
+  
+  // MÉTODO SÚPER RÁPIDO PARA ORDENAR
+  int _getNumeroSobre(Map<String, dynamic> data) {
+    if (data['numero'] != null) return data['numero'] as int;
+    final alias = data['alias']?.toString() ?? '';
+    final partes = alias.split(' ');
+    if (partes.isNotEmpty) return int.tryParse(partes.last) ?? 999;
+    return 999;
+  }
+
+  // LOGICA OPTIMIZADA: EL DIALOGO SE ABRE AL INSTANTE
+  void _crearSobreLogica(List<QueryDocumentSnapshot> sobresActuales) {
+    int maxNum = 0;
+    for (var doc in sobresActuales) {
+      int n = _getNumeroSobre(doc.data() as Map<String, dynamic>);
+      if (n != 999 && n > maxNum) maxNum = n;
+    }
+    int siguienteNum = maxNum + 1;
+
+    final aliasC = TextEditingController(text: 'Sobre $siguienteNum');
+    final contenidoC = TextEditingController();
+    String error = '';
+    bool guardando = false;
+    
+    showDialog(context: context, builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setM) => AlertDialog(
+        backgroundColor: fondoCard, 
+        shape: RoundedRectangleBorder(side: const BorderSide(color: verdeNeon, width: 2), borderRadius: BorderRadius.circular(15)),
+        title: const Text("Crear Nuevo Sobre", style: TextStyle(color: verdeNeon, fontWeight: FontWeight.w900)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: aliasC, style: const TextStyle(color: verdeNeon, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: "Alias / Número", labelStyle: TextStyle(color: Colors.white54))),
+          const SizedBox(height: 15),
+          TextField(controller: contenidoC, maxLines: 3, style: const TextStyle(color: naranjaTema, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: "Contenido (separado por comas)", labelStyle: TextStyle(color: Colors.white54), border: OutlineInputBorder())),
+          if (error.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR", style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: verdeNeon), 
+            onPressed: guardando ? null : () async {
+              if (contenidoC.text.isEmpty) return;
+              setM(() => guardando = true);
+              final aliasIngresado = aliasC.text.trim();
+              
+              final check = await FirebaseFirestore.instance.collection('sobres_items').where('alias', isEqualTo: aliasIngresado).get();
+              if (check.docs.isNotEmpty) {
+                setM(() { error = "Ese nombre o número ya existe."; guardando = false; });
+                return;
+              }
+
+              // EXTRAER EL NÚMERO PARA GUARDARLO Y OPTIMIZAR EL ORDENAMIENTO FUTURO
+              int numeroGuardar = 999;
+              final partesAlias = aliasIngresado.split(' ');
+              if (partesAlias.isNotEmpty) {
+                numeroGuardar = int.tryParse(partesAlias.last) ?? 999;
+              }
+
+              List<String> items = contenidoC.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+              await FirebaseFirestore.instance.collection('sobres_items').add({
+                'alias': aliasIngresado,
+                'numero': numeroGuardar, // <--- SE GUARDA EL NÚMERO DIRECTO
+                'contenido': items,
+                'abierto': false,
+                'asignado_a': null,
+                'fecha_creado': FieldValue.serverTimestamp(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+            }, 
+            child: guardando 
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+              : const Text("CREAR", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+          )
+        ],
+      )
+    ));
+  }
+
+  void _mostrarDialogoAsignar(DocumentReference sobreRef, String alias) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: fondoCard,
+      shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.amber, width: 2), borderRadius: BorderRadius.circular(15)),
+      title: Text("Asignar $alias", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900)),
+      content: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('sobres_usuarios').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const CircularProgressIndicator(color: Colors.amber);
+          final users = snapshot.data!.docs;
+          if (users.isEmpty) return const Text("Primero debes registrar un usuario en la otra pestaña.", style: TextStyle(color: Colors.white54));
+          
+          return SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: users.length,
+              itemBuilder: (context, i) {
+                final uNombre = users[i].id;
+                return ListTile(
+                  leading: const Icon(Icons.person, color: Colors.amber),
+                  title: Text(uNombre, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.amber, size: 14),
+                  onTap: () async {
+                    await sobreRef.update({'asignado_a': uNombre});
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                );
+              }
+            ),
+          );
+        }
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR", style: TextStyle(color: Colors.grey)))],
+    ));
+  }
+
+  void _eliminarTodosSobres(BuildContext context) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: fondoCard,
+      shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.redAccent), borderRadius: BorderRadius.circular(15)),
+      title: const Text("Eliminar Todos", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900)),
+      content: const Text("¿Estás seguro de eliminar a TODOS los sobres? Esta acción no se puede deshacer.", style: TextStyle(color: Colors.white54)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR", style: TextStyle(color: Colors.grey))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          onPressed: () async {
+            final db = FirebaseFirestore.instance;
+            final sobres = await db.collection('sobres_items').get();
+            final batch = db.batch();
+            for(var d in sobres.docs) {
+              batch.delete(d.reference);
+            }
+            await batch.commit();
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Todos los sobres eliminados"), backgroundColor: Colors.redAccent));
+          },
+          child: const Text("SÍ, ELIMINAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+        )
+      ]
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('sobres_items').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator(color: verdeNeon)));
+        final sobres = snapshot.data!.docs;
+        
+        // ORDENAMIENTO SÚPER RÁPIDO SIN REGEX
+        sobres.sort((a, b) {
+           final dataA = a.data() as Map<String, dynamic>;
+           final dataB = b.data() as Map<String, dynamic>;
+           return _getNumeroSobre(dataA).compareTo(_getNumeroSobre(dataB));
+        });
+
+        return Scaffold(
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _crearSobreLogica(sobres), 
+            backgroundColor: verdeNeon, 
+            icon: const Icon(Icons.add_box, color: Colors.black), 
+            label: const Text("CREAR SOBRE", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+          ),
+          body: Column(
+            children: [
+              if (sobres.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Total Sobres: ${sobres.length}", style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+                      TextButton.icon(
+                        onPressed: () => _eliminarTodosSobres(context), 
+                        icon: const Icon(Icons.delete_sweep, color: Colors.redAccent, size: 20), 
+                        label: const Text("ELIMINAR TODOS", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))
+                      )
+                    ]
+                  ),
+                ),
+              if (sobres.isEmpty)
+                const Expanded(child: Center(child: Text("No has creado ningún sobre aún.", style: TextStyle(color: Colors.white54))))
+              else
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80, left: 15, right: 15, top: 10), itemCount: sobres.length,
+                    itemBuilder: (context, i) {
+                      final s = sobres[i];
+                      final data = s.data() as Map<String, dynamic>;
+                      final bool abierto = data['abierto'] ?? false;
+                      final String? asignadoA = data['asignado_a'];
+                      final List<String> cont = List<String>.from(data['contenido'] ?? []);
+
+                      Color cardColor = verdeNeon;
+                      String subtitulo = "Libre (Sin asignar)";
+                      IconData iconoEstado = Icons.mark_email_unread;
+
+                      if (abierto) {
+                        cardColor = Colors.redAccent;
+                        subtitulo = "Abierto por ${data['abierto_por'] ?? asignadoA}";
+                        iconoEstado = Icons.drafts;
+                      } else if (asignadoA != null) {
+                        cardColor = Colors.amber;
+                        subtitulo = "Asignado a $asignadoA";
+                      }
+
+                      return Card(
+                        color: Colors.black45, shape: RoundedRectangleBorder(side: BorderSide(color: cardColor), borderRadius: BorderRadius.circular(10)),
+                        child: ExpansionTile(
+                          leading: Icon(iconoEstado, color: cardColor),
+                          title: Text(data['alias'] ?? 'Sobre', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          subtitle: Text(subtitulo, style: TextStyle(color: cardColor, fontWeight: FontWeight.w600, fontSize: 12)),
+                          trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.grey), onPressed: () => s.reference.delete()),
+                          children: [
+                            Container(
+                              width: double.infinity, padding: const EdgeInsets.all(10), color: Colors.black26,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Contiene:\n${cont.join('\n')}", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                  const SizedBox(height: 10),
+                                  
+                                  if (!abierto && asignadoA == null)
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                                      onPressed: () => _mostrarDialogoAsignar(s.reference, data['alias'] ?? 'Sobre'),
+                                      icon: const Icon(Icons.person_add, color: Colors.black, size: 16),
+                                      label: const Text("ASIGNAR A USUARIO", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    )
+                                  else if (!abierto && asignadoA != null)
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.amber)),
+                                      onPressed: () => s.reference.update({'asignado_a': null}),
+                                      icon: const Icon(Icons.person_remove, color: Colors.amber, size: 16),
+                                      label: const Text("QUITAR ASIGNACIÓN", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    )
+                                  else if (abierto)
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(backgroundColor: verdeNeon),
+                                      onPressed: () => s.reference.update({
+                                        'abierto': false, 
+                                        'abierto_por': null,
+                                        'fecha_abierto': null
+                                      }),
+                                      icon: const Icon(Icons.restore, color: Colors.black, size: 16),
+                                      label: const Text("REACTIVAR SOBRE", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    )
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
