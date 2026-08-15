@@ -1,0 +1,1299 @@
+// ignore_for_file: avoid_web_libraries_in_flutter
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:html' as html; // Librería agregada para forzar la descarga real en Web
+
+void main() {
+  runApp(const RegaloNoviaApp());
+}
+
+// =====================================================================
+// PALETA DE COLORES ELEGANTES
+// =====================================================================
+const Color colorFondo = Color(0xFF1C1220);
+const Color colorFondoClaro = Color(0xFF2B1B2E);
+const Color colorDorado = Color(0xFFC9A15A);
+const Color colorRosa = Color(0xFFE8B4BC);
+const Color colorMarfil = Color(0xFFF7EDE2);
+const Color colorRojoPasion = Color(0xFFD50000);
+
+class RegaloNoviaApp extends StatelessWidget {
+  const RegaloNoviaApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Para mi Princesa',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: colorFondo,
+        colorScheme: const ColorScheme.dark(
+          primary: colorDorado,
+          secondary: colorRosa,
+          surface: colorFondoClaro,
+        ),
+        fontFamily: 'Georgia', 
+        useMaterial3: true,
+      ),
+      home: const LoginEspecialScreen(),
+    );
+  }
+}
+
+// =====================================================================
+// ANIMACIÓN 1: CORAZONES FLOTANTES DE FONDO
+// =====================================================================
+class CorazonesFlotantes extends StatefulWidget {
+  const CorazonesFlotantes({super.key});
+
+  @override
+  State<CorazonesFlotantes> createState() => _CorazonesFlotantesState();
+}
+
+class _CorazonesFlotantesState extends State<CorazonesFlotantes> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final math.Random _random = math.Random();
+  late List<double> _offsetsX;
+  late List<double> _offsetsY;
+  late List<double> _sizes;
+  late List<bool> _isLeft;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
+    _offsetsX = List.generate(16, (i) => _random.nextDouble() * 60);
+    _offsetsY = List.generate(16, (i) => _random.nextDouble());
+    _sizes = List.generate(16, (i) => 15 + _random.nextDouble() * 25);
+    _isLeft = List.generate(16, (i) => i % 2 == 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        double height = MediaQuery.of(context).size.height;
+        double width = MediaQuery.of(context).size.width;
+
+        return Stack(
+          children: List.generate(16, (i) {
+            double progress = (_controller.value + _offsetsY[i]) % 1.0;
+            double yPos = height - (progress * (height + 150)); 
+            double onda = math.sin(progress * math.pi * 6) * 15;
+            double xPos = _isLeft[i] 
+                ? _offsetsX[i] + onda 
+                : (width - _offsetsX[i] - _sizes[i]) + onda;
+
+            return Positioned(
+              left: xPos,
+              top: yPos,
+              child: Opacity(
+                opacity: math.max(0.0, 1.0 - progress),
+                child: Icon(
+                  Icons.favorite, 
+                  color: colorRosa.withValues(alpha: 0.15), 
+                  size: _sizes[i]
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+// =====================================================================
+// ANIMACIÓN 2: "TE AMO" EN BLANCO TRANSLÚCIDO
+// =====================================================================
+class AmorFlotante extends StatefulWidget {
+  const AmorFlotante({super.key});
+
+  @override
+  State<AmorFlotante> createState() => _AmorFlotanteState();
+}
+
+class _AmorFlotanteState extends State<AmorFlotante> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final math.Random _random = math.Random();
+  late List<double> _offsetsX;
+  late List<double> _offsetsY;
+  late List<double> _sizes;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+    _offsetsX = List.generate(20, (i) => _random.nextDouble());
+    _offsetsY = List.generate(20, (i) => _random.nextDouble());
+    _sizes = List.generate(20, (i) => 25 + _random.nextDouble() * 20); 
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer( 
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          double height = MediaQuery.of(context).size.height;
+          double width = MediaQuery.of(context).size.width;
+
+          return Stack(
+            children: List.generate(20, (i) {
+              double progress = (_controller.value + _offsetsY[i]) % 1.0;
+              double yPos = height - (progress * (height + 150)); 
+              double onda = math.sin(progress * math.pi * 4) * 30;
+              double xPos = (_offsetsX[i] * width) + onda;
+
+              if (xPos < 0) xPos = 0;
+              if (xPos > width - 60) xPos = width - 60;
+
+              return Positioned(
+                left: xPos,
+                top: yPos,
+                child: Opacity(
+                  opacity: math.max(0.0, 1.0 - progress),
+                  child: Text(
+                    'Te amo', 
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: _sizes[i] * 0.8, 
+                      fontWeight: FontWeight.bold,
+                      fontStyle: FontStyle.italic,
+                      shadows: [
+                        Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 4, offset: const Offset(1, 1))
+                      ]
+                    )
+                  ),
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// ANIMACIÓN 3: EXPLOSIÓN DE NOMBRES AL MINUTO 1:17
+// =====================================================================
+class LluviaDeNombres extends StatefulWidget {
+  const LluviaDeNombres({super.key});
+
+  @override
+  State<LluviaDeNombres> createState() => _LluviaDeNombresState();
+}
+
+class _LluviaDeNombresState extends State<LluviaDeNombres> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final math.Random _random = math.Random();
+  late List<double> _x;
+  late List<double> _y;
+  late List<double> _sizes;
+  late List<bool> _isElla;
+
+  @override
+  void initState() {
+    super.initState();
+    // Animación de parpadeo rápido
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 400))..repeat(reverse: true);
+    _x = List.generate(35, (i) => _random.nextDouble());
+    _y = List.generate(35, (i) => _random.nextDouble());
+    _sizes = List.generate(35, (i) => 20 + _random.nextDouble() * 30);
+    _isElla = List.generate(35, (i) => i % 2 == 0);
+  }
+
+  @override
+  void dispose() { 
+    _controller.dispose(); 
+    super.dispose(); 
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          double width = MediaQuery.of(context).size.width;
+          double height = MediaQuery.of(context).size.height;
+          return Stack(
+            children: List.generate(35, (i) {
+              return Positioned(
+                left: _x[i] * (width - 100),
+                top: _y[i] * (height - 50),
+                child: Transform.scale(
+                  scale: 0.8 + (_controller.value * 0.4),
+                  child: Text(
+                    _isElla[i] ? 'ELLA' : 'JENNY <3',
+                    style: TextStyle(
+                      color: _isElla[i] ? colorRosa : colorDorado,
+                      fontWeight: FontWeight.bold,
+                      fontSize: _sizes[i],
+                      shadows: const [Shadow(color: Colors.black, blurRadius: 8)],
+                    )
+                  )
+                )
+              );
+            })
+          );
+        }
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// WIDGET REUTILIZABLE: BARRA DE PESTAÑAS
+// =====================================================================
+class BarraPestanas extends StatelessWidget {
+  final int nivelActivo;
+  const BarraPestanas({super.key, required this.nivelActivo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: colorFondoClaro.withValues(alpha: 0.8),
+        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(4, (index) {
+          bool estaDesbloqueado = index <= nivelActivo;
+          bool esActual = index == nivelActivo;
+          
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: esActual ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  estaDesbloqueado ? Icons.lock_open : Icons.lock,
+                  size: 14,
+                  color: estaDesbloqueado ? colorDorado : colorRosa.withValues(alpha: 0.5),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '...',
+                  style: TextStyle(
+                    color: estaDesbloqueado ? colorDorado : colorRosa.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// PANTALLA 1: EL LOGIN
+// =====================================================================
+class LoginEspecialScreen extends StatefulWidget {
+  const LoginEspecialScreen({super.key});
+
+  @override
+  State<LoginEspecialScreen> createState() => _LoginEspecialScreenState();
+}
+
+class _LoginEspecialScreenState extends State<LoginEspecialScreen> {
+  final TextEditingController _usuarioController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  void _validarCredenciales() {
+    if (_usuarioController.text.trim().toLowerCase() == "amor" &&
+        _passwordController.text.trim() == "1234") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PantallaValidacion()),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: colorFondoClaro,
+          title: const Text('Oye...', style: TextStyle(color: colorDorado)),
+          content: const Text('Esa no es la contraseña... ¿me engañas? 🤨', style: TextStyle(color: colorMarfil)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Ok 🙄', style: TextStyle(color: colorRosa)),
+            )
+          ],
+        )
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CorazonesFlotantes(),
+          SafeArea(
+            child: Column(
+              children: [
+                const BarraPestanas(nivelActivo: 0),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Container(
+                        padding: const EdgeInsets.all(32.0),
+                        decoration: BoxDecoration(
+                          color: colorFondoClaro.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: colorDorado.withValues(alpha: 0.3)),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 5),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.favorite, color: colorDorado, size: 60),
+                            const SizedBox(height: 20),
+                            const Text(
+                              'Credenciales Especiales',
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorMarfil),
+                            ),
+                            const SizedBox(height: 30),
+                            TextField(
+                              controller: _usuarioController,
+                              style: const TextStyle(color: colorMarfil),
+                              textAlign: TextAlign.center,
+                              decoration: InputDecoration(
+                                hintText: 'Usuario',
+                                hintStyle: TextStyle(color: colorMarfil.withValues(alpha: 0.4)),
+                                filled: true,
+                                fillColor: Colors.white.withValues(alpha: 0.05),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: colorDorado)),
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            TextField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              style: const TextStyle(color: colorMarfil),
+                              textAlign: TextAlign.center,
+                              decoration: InputDecoration(
+                                hintText: 'Contraseña',
+                                hintStyle: TextStyle(color: colorMarfil.withValues(alpha: 0.4)),
+                                filled: true,
+                                fillColor: Colors.white.withValues(alpha: 0.05),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: colorDorado)),
+                              ),
+                            ),
+                            const SizedBox(height: 30),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _validarCredenciales,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorDorado,
+                                  foregroundColor: colorFondo,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                                ),
+                                child: const Text('ROMPER EL SELLO', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// PANTALLA 2: PREGUNTAS
+// =====================================================================
+class PantallaValidacion extends StatefulWidget {
+  const PantallaValidacion({super.key});
+
+  @override
+  State<PantallaValidacion> createState() => _PantallaValidacionState();
+}
+
+class _PantallaValidacionState extends State<PantallaValidacion> {
+  final TextEditingController _respuestaController = TextEditingController();
+  
+  int _pasoActual = 0;
+  int _intentosFallidos = 0;
+  
+  Timer? _timerPregunta;
+  int _tiempoPregunta = 20;
+  bool _segundoIntentoHora = false;
+
+  @override
+  void dispose() {
+    _timerPregunta?.cancel();
+    super.dispose();
+  }
+
+  String getPreguntaActual() {
+    switch (_pasoActual) {
+      case 0: return '¿Me amas mucho o poco?';
+      case 1: return 'Nivel 2...\n¿Cómo se llama la futura enfermera más hermosa de todas?';
+      case 2: return '¿Cuando fue que te dije por primera vez TE AMO?\n(NO BUSQUES EN WHATSAPP)';
+      case 3: return '¡Rápido!\n¿A qué hora exacta fue? 👀';
+      case 4: return 'Y ahora...\n¿Cuando fue la primera vez que TÚ me dijiste te amo?';
+      default: return '';
+    }
+  }
+
+  void _iniciarTimerPregunta() {
+    _tiempoPregunta = 20;
+    _timerPregunta = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _tiempoPregunta--;
+        if (_tiempoPregunta <= 0) {
+          timer.cancel();
+          _manejarFalloHora();
+        }
+      });
+    });
+  }
+
+  void _manejarFalloHora() {
+    _timerPregunta?.cancel();
+    
+    if (_segundoIntentoHora) {
+      setState(() {
+        _pasoActual = 4;
+        _respuestaController.clear();
+      });
+    } else {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: colorFondoClaro,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: colorDorado)),
+          title: const Text('Uy...', style: TextStyle(color: colorDorado)),
+          content: const Text(
+            'Ya nada jaja solo por ser pana pasa nomas aun que perdiste algo jaja o quieres un ultimo intento? o la siguiente pregunta', 
+            style: TextStyle(color: colorMarfil, fontSize: 16)
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _segundoIntentoHora = true;
+                  _respuestaController.clear();
+                  _iniciarTimerPregunta();
+                });
+              },
+              child: const Text('Último intento', style: TextStyle(color: colorDorado)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _pasoActual = 4;
+                  _respuestaController.clear();
+                });
+              },
+              child: const Text('Siguiente pregunta', style: TextStyle(color: colorRosa)),
+            )
+          ],
+        )
+      );
+    }
+  }
+
+  void _mostrarAlertaSimple(String mensaje) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorFondoClaro,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: colorDorado)),
+        title: const Text('Oye...', style: TextStyle(color: colorDorado)),
+        content: Text(mensaje, style: const TextStyle(fontSize: 16, color: colorMarfil)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Ok 🙄', style: TextStyle(color: colorRosa, fontSize: 16)),
+          ),
+        ],
+      )
+    );
+  }
+
+  void _mostrarAlertaConAccion(String mensaje, VoidCallback accion) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorFondoClaro,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: colorDorado)),
+        title: const Text('¡Atención!', style: TextStyle(color: colorDorado)),
+        content: Text(mensaje, style: const TextStyle(fontSize: 16, color: colorMarfil, height: 1.4)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              accion();
+            },
+            child: const Text('Entendido ❤️', style: TextStyle(color: colorRosa, fontSize: 16)),
+          ),
+        ],
+      )
+    );
+  }
+
+  void _validarRespuesta() {
+    String txtOriginal = _respuestaController.text.trim().toLowerCase();
+    if (txtOriginal.isEmpty) return;
+
+    String txtLimpio = txtOriginal.replaceAll(' ', '');
+
+    if (_pasoActual == 0) {
+      if (['demasiado', 'muchísimo', 'muchisimo'].contains(txtLimpio)) {
+        setState(() { _pasoActual = 1; _intentosFallidos = 0; _respuestaController.clear(); });
+      } else if (txtLimpio == 'bastante' || txtLimpio == 'bastante?') {
+        _mostrarAlertaSimple('uuuu si te tengo que decir que chiste y por que solo bastante y no demasiado :c, ajja');
+      } else {
+        _intentosFallidos++;
+        if (_intentosFallidos == 1) _mostrarAlertaSimple('¿Por qué no bastante? 🤨');
+        else if (_intentosFallidos == 2) _mostrarAlertaSimple('Si te digo así, ¿qué chiste? jajaja 🤡');
+        else _mostrarAlertaSimple('Ya pon "demasiado" amor, hazlo por mí jajaja ❤️');
+      }
+    } 
+    else if (_pasoActual == 1) {
+      if (['jenny', 'yo'].contains(txtLimpio)) {
+        setState(() { _pasoActual = 2; _intentosFallidos = 0; _respuestaController.clear(); });
+      } else {
+        _intentosFallidos++;
+        if (_intentosFallidos == 1) _mostrarAlertaSimple('Esa no es... intenta de nuevo.');
+        else if (_intentosFallidos == 2) _mostrarAlertaSimple('Empieza con J y termina con enny ❤️');
+        else _mostrarAlertaSimple('Ay amor, eres tú jajaja pon tu nombre.');
+      }
+    }
+    else if (_pasoActual == 2) {
+      if (txtLimpio == '21/mayo/2023' || txtLimpio == '21/05/2023') {
+        setState(() { 
+          _pasoActual = 3; 
+          _intentosFallidos = 0; 
+          _respuestaController.clear(); 
+        });
+        _iniciarTimerPregunta(); 
+      } else {
+        _intentosFallidos++;
+        if (_intentosFallidos == 1) _mostrarAlertaSimple('Uy... piensa bien. Sin ver WhatsApp 👀');
+        else if (_intentosFallidos == 2) _mostrarAlertaSimple('Revisa tu memoria. Fue a finales de mayo...');
+        else _mostrarAlertaSimple('Vamos, tiene este formato: 21/05/2023 o 21/mayo/2023 🥺');
+      }
+    }
+    else if (_pasoActual == 3) {
+      if (txtLimpio == '6:27pm' || txtLimpio == '18:27' || txtLimpio == '6:27') {
+        _timerPregunta?.cancel();
+        _mostrarAlertaConAccion(
+          ':0 me sorprendeiste (aun que sacaste de whatsapp por la anterior pregunta)\n\nSaca captura de pantalla y cuando me enoje y quieres que se me quite el enoje sin escusa me muestras esta captura de pantalla\n\n(Válido hasta este año y solo 1 vez)', 
+          () {
+            setState(() { _pasoActual = 4; _respuestaController.clear(); });
+          }
+        );
+      } else {
+        _manejarFalloHora();
+      }
+    }
+    else if (_pasoActual == 4) {
+      if (txtLimpio == '22/mayo/2023' || txtLimpio == '22/05/2023') {
+        _mostrarAlertaConAccion('Osea legalmente fue el 23 pero te la compro 😏', () {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PantallaRompecabezas()));
+        });
+      } else if (txtLimpio == '23/mayo/2023' || txtLimpio == '23/05/2023') {
+        _mostrarAlertaConAccion('Muy bien, igual me dijiste indirectamente que me amabas el 22 pero aja xd ❤️', () {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PantallaRompecabezas()));
+        });
+      } else {
+        _intentosFallidos++;
+        if (_intentosFallidos == 1) _mostrarAlertaSimple('¿Segura? Fue justo al día siguiente o dos días después de que yo te lo dije...');
+        else _mostrarAlertaSimple('Pon la fecha en formato: 22/05/2023 o 23/mayo/2023 🥺');
+      }
+    }
+  }
+
+  void _saltarPregunta() {
+    if (_pasoActual < 4) {
+      setState(() {
+        _pasoActual++;
+        _intentosFallidos = 0;
+        _respuestaController.clear();
+      });
+      if (_pasoActual == 3) {
+        _iniciarTimerPregunta();
+      } else {
+        _timerPregunta?.cancel();
+      }
+    } else {
+      _timerPregunta?.cancel();
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PantallaRompecabezas()));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CorazonesFlotantes(),
+          SafeArea(
+            child: Column(
+              children: [
+                const BarraPestanas(nivelActivo: 1),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Prueba ${_pasoActual + 1} de 5',
+                            style: const TextStyle(fontSize: 14, color: colorRosa, letterSpacing: 2),
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          if (_pasoActual == 3) ...[
+                            Text(
+                              '00:${_tiempoPregunta.toString().padLeft(2, '0')}',
+                              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.red[600], letterSpacing: 2),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+
+                          Text(
+                            getPreguntaActual(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorMarfil, height: 1.3),
+                          ),
+                          const SizedBox(height: 40),
+                          
+                          TextField(
+                            controller: _respuestaController,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: colorMarfil, fontSize: 18),
+                            decoration: InputDecoration(
+                              hintText: 'Tu respuesta...',
+                              hintStyle: TextStyle(color: colorMarfil.withValues(alpha: 0.3)),
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.05),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: colorDorado, width: 1.5)),
+                            ),
+                            onSubmitted: (_) => _validarRespuesta(),
+                          ),
+                          const SizedBox(height: 30),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: _validarRespuesta,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorDorado,
+                                foregroundColor: colorFondo,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                              child: const Text('CONFIRMAR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 15),
+                          
+                          TextButton(
+                            onPressed: _saltarPregunta,
+                            child: const Text(
+                              'Saltar pregunta (Solo para pruebas)',
+                              style: TextStyle(color: colorRosa, decoration: TextDecoration.underline),
+                            ),
+                          ),
+
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// PANTALLA 3: EL ROMPECABEZAS Y AUDIO (IMPLEMENTACIÓN REAL Y SINCRONIZADA)
+// =====================================================================
+class PantallaRompecabezas extends StatefulWidget {
+  const PantallaRompecabezas({super.key});
+
+  @override
+  State<PantallaRompecabezas> createState() => _PantallaRompecabezasState();
+}
+
+class _PantallaRompecabezasState extends State<PantallaRompecabezas> {
+  List<int> ordenActual = List.generate(35, (i) => i);
+  int? indiceSeleccionado;
+  bool resuelto = false;
+  bool mostrarSorpresaFinal = false;
+
+  Timer? _timer;
+  int _tiempoBase = 60; 
+  int _tiempoRestante = 60;
+  int _vecesFalladas = 0; 
+
+  // Configuración del Reproductor de Audio
+  final AudioPlayer _reproductor = AudioPlayer();
+  bool _reproduciendo = false;
+  bool _mostrarMensajeDescarga = false; 
+
+  // Variables de Sincronización (Timestamps)
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _playerCompleteSubscription;
+  
+  bool _mostrarAnimacion52 = false; // 0:52 Ella ★
+  bool _mostrarAnimacion60 = false; // 1:00 Ella Jenny
+  bool _mostrarAnimacion77 = false; // 1:17 Explosión ELLA JENNY<3
+
+  @override
+  void initState() {
+    super.initState();
+    _mezclarEIniciar();
+
+    // ESCUCHAMOS LA POSICIÓN DEL AUDIO EN TIEMPO REAL
+    _positionSubscription = _reproductor.onPositionChanged.listen((Duration p) {
+      int sec = p.inSeconds;
+
+      // 0:52 por 2 segundos (52 a 53)
+      bool show52 = (sec >= 52 && sec < 54);
+      // 1:00 por 2 segundos (60 a 61)
+      bool show60 = (sec >= 60 && sec < 62);
+      // 1:17 por 4-5 segundos (77 a 81)
+      bool show77 = (sec >= 77 && sec < 82);
+
+      if (_mostrarAnimacion52 != show52 || _mostrarAnimacion60 != show60 || _mostrarAnimacion77 != show77) {
+        setState(() {
+          _mostrarAnimacion52 = show52;
+          _mostrarAnimacion60 = show60;
+          _mostrarAnimacion77 = show77;
+        });
+      }
+    });
+
+    // CUANDO EL AUDIO TERMINA POR COMPLETO
+    _playerCompleteSubscription = _reproductor.onPlayerComplete.listen((event) {
+      setState(() {
+        _reproduciendo = false;
+      });
+      _mostrarDialogoRepetir();
+    });
+  }
+
+  void _mostrarDialogoRepetir() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorFondoClaro,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: colorDorado)),
+        title: const Text('¡Terminó! 🎶', style: TextStyle(color: colorDorado)),
+        content: const Text('La canción ha finalizado. ¿Quieres escucharla otra vez amor?', style: TextStyle(color: colorMarfil, fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // No hacemos nada, solo cerramos
+            },
+            child: const Text('No, gracias ❤️', style: TextStyle(color: colorRosa, fontSize: 16)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _manejarAudio(); // Vuelve a darle play
+            },
+            child: const Text('Sí, repetir 🎧', style: TextStyle(color: colorDorado, fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ]
+      )
+    );
+  }
+
+  void _mezclarEIniciar() {
+    setState(() {
+      ordenActual.shuffle();
+      if (_esVictoria()) {
+        ordenActual.shuffle();
+      }
+      resuelto = false;
+      indiceSeleccionado = null;
+    });
+    _iniciarTimer();
+  }
+
+  void _iniciarTimer() {
+    _timer?.cancel();
+    setState(() { _tiempoRestante = _tiempoBase; });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() { _tiempoRestante--; });
+      if (_tiempoRestante <= 0) {
+        _timer?.cancel();
+        _tiempoAgotado();
+      }
+    });
+  }
+
+  void _tiempoAgotado() {
+    _vecesFalladas++;
+    String mensajeAgotado = 'Jajaja, te dije que era contra reloj 🤡 ¡Pero tranquila, inténtalo de nuevo amor!';
+    if (_vecesFalladas >= 2) { 
+      _tiempoBase = _tiempoBase * 2;
+      mensajeAgotado = 'Ya veo que te está costando armarlo amor jajaja 😂\n¡Te voy a dar el doble de tiempo ($_tiempoBase segundos) para que lo logres!';
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorFondoClaro,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: colorDorado)),
+        title: const Text('¡Tiempo agotado! ⏰', style: TextStyle(color: colorDorado)),
+        content: Text(mensajeAgotado, style: const TextStyle(color: colorMarfil, fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _mezclarEIniciar(); 
+            },
+            child: const Text('Ok 🙄', style: TextStyle(color: colorRosa, fontSize: 16)),
+          )
+        ]
+      )
+    );
+  }
+
+  void _tocarPieza(int index) {
+    if (resuelto) return;
+
+    setState(() {
+      if (indiceSeleccionado == null) {
+        indiceSeleccionado = index;
+      } else {
+        int temp = ordenActual[indiceSeleccionado!];
+        ordenActual[indiceSeleccionado!] = ordenActual[index];
+        ordenActual[index] = temp;
+        indiceSeleccionado = null;
+        _verificarVictoria();
+      }
+    });
+  }
+
+  bool _esVictoria() {
+    for (int i = 0; i < 35; i++) {
+      if (ordenActual[i] != i) return false;
+    }
+    return true;
+  }
+
+  void _verificarVictoria() {
+    if (_esVictoria()) {
+      _timer?.cancel();
+      setState(() { resuelto = true; });
+      Future.delayed(const Duration(seconds: 3), () {
+        setState(() { mostrarSorpresaFinal = true; });
+      });
+    }
+  }
+
+  void _saltarRompecabezas() {
+    _timer?.cancel();
+    setState(() {
+      ordenActual = List.generate(35, (i) => i);
+      resuelto = true;
+    });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      setState(() {
+        mostrarSorpresaFinal = true;
+      });
+    });
+  }
+
+  void _manejarAudio() async {
+    if (_reproduciendo) {
+      await _reproductor.pause();
+    } else {
+      // Como puede que inicie desde 0 si terminó, forzamos play
+      await _reproductor.play(AssetSource('Audio_Dedicada_a_mi_novia.mpeg'));
+    }
+    setState(() {
+      _reproduciendo = !_reproduciendo;
+    });
+  }
+
+  void _simularDescarga() {
+    setState(() {
+      _mostrarMensajeDescarga = true;
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _mostrarMensajeDescarga = false;
+        });
+      }
+    });
+
+    // LÓGICA DE DESCARGA REAL USANDO DART:HTML
+    try {
+      final anchor = html.AnchorElement(href: 'assets/assets/Audio_Dedicada_a_mi_novia.mpeg');
+      anchor.download = 'Audio_Dedicada_a_mi_novia.mpeg';
+      anchor.click();
+    } catch (e) {
+      // En caso de que haya algún bloqueo del navegador, lo silencia para no crashear
+      debugPrint("Error de descarga: $e");
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _positionSubscription?.cancel();
+    _playerCompleteSubscription?.cancel();
+    _reproductor.dispose(); 
+    super.dispose();
+  }
+
+  Widget _crearPieza(int indiceCorrecto, double anchoPieza, double altoPieza) {
+    int col = indiceCorrecto % 5;
+    int row = indiceCorrecto ~/ 5;
+
+    double x = -1.0 + (col * (2.0 / 4));
+    double y = -1.0 + (row * (2.0 / 6));
+
+    return ClipRect(
+      child: SizedBox(
+        width: anchoPieza,
+        height: altoPieza,
+        child: OverflowBox(
+          maxWidth: anchoPieza * 5,
+          maxHeight: altoPieza * 7,
+          alignment: Alignment(x, y),
+          child: Image.asset(
+            'assets/IMG-20230426-WA0085.jpg',
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double anchoPantalla = MediaQuery.of(context).size.width;
+    double anchoTablero = anchoPantalla * 0.9;
+    if (anchoTablero > 350) anchoTablero = 350;
+    
+    double altoTablero = anchoTablero * (7 / 5);
+    double anchoPieza = anchoTablero / 5;
+    double altoPieza = altoTablero / 7;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CorazonesFlotantes(), 
+
+          SafeArea(
+            child: Column(
+              children: [
+                BarraPestanas(nivelActivo: mostrarSorpresaFinal ? 3 : 2),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          
+                          if (!mostrarSorpresaFinal) ...[
+                            if (!resuelto) ...[
+                              const Text(
+                                '¡Rápido, el tiempo corre!',
+                                style: TextStyle(color: colorRosa, fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '${(_tiempoRestante ~/ 60).toString().padLeft(2, '0')}:${(_tiempoRestante % 60).toString().padLeft(2, '0')}',
+                                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: colorDorado, letterSpacing: 2),
+                              ),
+                              const SizedBox(height: 15),
+                            ] else ...[
+                              const Text(
+                                'Para ti 💛\nSolo por bonita.\nTe amo, mi princesa.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorDorado, height: 1.4),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                            
+                            Container(
+                              width: anchoTablero,
+                              height: altoTablero,
+                              decoration: BoxDecoration(
+                                color: colorFondo,
+                                border: Border.all(color: colorDorado, width: resuelto ? 4 : 2),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 15, spreadRadius: 2)
+                                ],
+                              ),
+                              child: GridView.builder(
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 5,
+                                  childAspectRatio: anchoPieza / altoPieza,
+                                  crossAxisSpacing: resuelto ? 0 : 1.5,
+                                  mainAxisSpacing: resuelto ? 0 : 1.5,
+                                ),
+                                itemCount: 35,
+                                itemBuilder: (context, index) {
+                                  int indiceImagen = ordenActual[index];
+                                  bool estaSeleccionada = indiceSeleccionado == index;
+
+                                  return GestureDetector(
+                                    onTap: () => _tocarPieza(index),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: estaSeleccionada 
+                                            ? Border.all(color: Colors.white, width: 3) 
+                                            : null,
+                                      ),
+                                      child: resuelto 
+                                          ? _crearPieza(index, anchoPieza, altoPieza) 
+                                          : _crearPieza(indiceImagen, anchoPieza, altoPieza),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 20),
+                            TextButton(
+                              onPressed: _saltarRompecabezas,
+                              child: const Text(
+                                'Saltar rompecabezas (Solo para pruebas)',
+                                style: TextStyle(color: colorRosa, decoration: TextDecoration.underline),
+                              ),
+                            ),
+                          ],
+
+                          if (mostrarSorpresaFinal) ...[
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.all(25),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: colorDorado.withValues(alpha: 0.3), style: BorderStyle.solid),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    '¿Última sorpresa?',
+                                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colorDorado),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    'Como te dediqué la canción de BEMASTE - Tiago PZK, ahora este nuevo que es un adelanto.\n\nEntonces, hasta que salga, te lo dedico jsjs ❤️',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 16, color: colorMarfil, height: 1.5),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Es de Alex Ponce:',
+                                    style: TextStyle(color: colorRosa, fontStyle: FontStyle.italic, fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 30),
+                                  
+                                  GestureDetector(
+                                    onTap: _manejarAudio,
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 300),
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _reproduciendo ? colorFondoClaro : colorDorado,
+                                        border: Border.all(color: colorDorado, width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: colorDorado.withValues(alpha: 0.4),
+                                            blurRadius: _reproduciendo ? 30 : 10,
+                                            spreadRadius: _reproduciendo ? 10 : 2,
+                                          )
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        _reproduciendo ? Icons.pause : Icons.play_arrow,
+                                        size: 40,
+                                        color: _reproduciendo ? colorDorado : colorFondo,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    _reproduciendo ? 'Reproduciendo adelanto... 🎧' : 'Toca el sello para reproducir',
+                                    style: TextStyle(
+                                      fontSize: 14, 
+                                      color: _reproduciendo ? colorRosa : colorDorado.withValues(alpha: 0.6)
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  
+                                  Text(
+                                    'Nota: no te asustes al final del audio que habla Alex Ponce que yo me asusté xd',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 10, color: colorMarfil.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
+                                  ),
+                                  const SizedBox(height: 30),
+                                  
+                                  ElevatedButton.icon(
+                                    onPressed: _simularDescarga,
+                                    icon: const Icon(Icons.download_rounded, size: 20),
+                                    label: const Text('Si quieres descargarte escúchalo'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorFondoClaro,
+                                      foregroundColor: colorDorado,
+                                      side: const BorderSide(color: colorDorado),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (_reproduciendo) const AmorFlotante(),
+
+          // Capa Especial: Animación en el Segundo 0:52 (Ella ★)
+          if (_mostrarAnimacion52)
+             Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  child: const Center(
+                    child: Text(
+                      'Ella ★', 
+                      style: TextStyle(fontSize: 70, fontWeight: FontWeight.bold, color: colorDorado, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Capa Especial: Animación en el Minuto 1:00 (Ella Jenny)
+          if (_mostrarAnimacion60)
+             Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  child: const Center(
+                    child: Text(
+                      'Ella Jenny', 
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 60, fontWeight: FontWeight.bold, color: colorRosa, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Capa Especial: Lluvia de Nombres ELLA JENNY<3 (Minuto 1:17)
+          if (_mostrarAnimacion77)
+            const Positioned.fill(
+              child: LluviaDeNombres(),
+            ),
+
+          // Capa de mensaje de descarga
+          if (_mostrarMensajeDescarga)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.6), 
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: _mostrarMensajeDescarga ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 500),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 40),
+                        padding: const EdgeInsets.all(25),
+                        decoration: BoxDecoration(
+                          color: colorDorado,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [BoxShadow(color: colorDorado.withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 5)],
+                        ),
+                        child: const Text(
+                          "¡Ojalá te guste y escuches amore! ✨",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colorFondo, fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+        ],
+      ),
+    );
+  }
+}
